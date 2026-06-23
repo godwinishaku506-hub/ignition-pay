@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { AppThrottlerModule } from './throttler/throttler.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { WalletsModule } from './wallets/wallets.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     ApiKeysModule,
     // Campaigns module
     CampaignsModule,
+    WalletsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
