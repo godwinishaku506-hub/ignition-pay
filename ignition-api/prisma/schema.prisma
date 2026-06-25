@@ -128,6 +128,8 @@ model User {
   newsLetterSub Newsletter?
   auditLogs     AuditLog[]
   apiKeys       ApiKey[]
+  passwordHistory PasswordHistory[]
+  emailVerificationTokens EmailVerificationToken[]
   wallets       Wallet[]
 
   @@index([email])
@@ -136,6 +138,19 @@ model User {
   @@index([kycStatus])
   @@index([deletedAt])
   @@map("users")
+}
+
+/// PasswordHistory model for preventing recent password reuse
+model PasswordHistory {
+  id           String   @id @default(uuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_history")
 }
 
 /// ApiKey model for third-party integrations

@@ -10,21 +10,34 @@ import {
   Request,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { UserRole } from '@prisma/client';
 
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { UsersService } from './users.service';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { ConfirmEmailDto } from './dto/confirm-email.dto';
 import { LoginDto, LoginResponseDto } from './dto/login.dto';
+import {
+  ChangePasswordDto,
+  PasswordActionResponseDto,
+  SetupPasswordDto,
+} from './dto/password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateKYCStatusDto } from './dto/update-kyc-status.dto';
 import { UserProfileDto, PublicUserProfileDto } from './dto/user-profile.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
-import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+
+interface AuthenticatedRequest {
+  user: {
+    sub?: string;
+    userId?: string;
+    walletAddress: string;
+  };
+}
 
 @Controller('users')
 export class UsersController {
@@ -35,10 +48,12 @@ export class UsersController {
    * Register with email + password + walletAddress.
    */
   @Post('register')
-  async register(
-    @Body() dto: RegisterDto,
-  ): Promise<RegisterResponseDto> {
-    return this.usersService.register(dto.email, dto.walletAddress, dto.password);
+  async register(@Body() dto: RegisterDto): Promise<RegisterResponseDto> {
+    return this.usersService.register(
+      dto.email,
+      dto.walletAddress,
+      dto.password,
+    );
   }
 
   /**
@@ -46,7 +61,9 @@ export class UsersController {
    * Confirm email using confirmation token.
    */
   @Post('confirm-email')
-  async confirmEmail(@Body() dto: ConfirmEmailDto) {
+  async confirmEmail(
+    @Body() dto: ConfirmEmailDto,
+  ): Promise<RegisterResponseDto> {
     return this.usersService.confirmEmail(dto.token);
   }
 
@@ -61,12 +78,49 @@ export class UsersController {
   }
 
   /**
+   * POST /users/password/setup
+   * Set the first password for an authenticated wallet-created account.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('password/setup')
+  async setupPassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: SetupPasswordDto,
+  ): Promise<PasswordActionResponseDto> {
+    return this.usersService.setupPassword({
+      userId: req.user.sub,
+      walletAddress: req.user.walletAddress,
+      password: dto.password,
+    });
+  }
+
+  /**
+   * PATCH /users/password
+   * Change the authenticated user's password after confirming the current one.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch('password')
+  async changePassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<PasswordActionResponseDto> {
+    return this.usersService.changePassword({
+      userId: req.user.sub,
+      walletAddress: req.user.walletAddress,
+      currentPassword: dto.currentPassword,
+      newPassword: dto.newPassword,
+    });
+  }
+
+  /**
    * GET /users/me
    * Retrieve authenticated user's full profile
    */
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getMyProfile(@Request() req: any): Promise<UserProfileDto> {
+  async getMyProfile(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserProfileDto> {
     return this.usersService.getMyProfile(req.user.walletAddress);
   }
 
@@ -77,7 +131,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   async updateMyProfile(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() updateDto: UpdateUserDto,
   ): Promise<UserProfileDto> {
     return this.usersService.updateMyProfile(req.user.walletAddress, updateDto);
@@ -88,7 +142,9 @@ export class UsersController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  async getProfile(@Request() req: any): Promise<UserProfileDto> {
+  async getProfile(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserProfileDto> {
     return this.usersService.getMyProfile(req.user.walletAddress);
   }
 
@@ -98,7 +154,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Put('profile')
   async putProfile(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() updateDto: UpdateUserDto,
   ): Promise<UserProfileDto> {
     return this.usersService.updateMyProfile(req.user.walletAddress, updateDto);
@@ -127,11 +183,11 @@ export class AdminUsersController {
   async updateKYCStatus(
     @Param('id') userId: string,
     @Body() updateDto: UpdateKYCStatusDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ): Promise<{ success: boolean; message: string }> {
     return this.usersService.updateKYCStatus(
       userId,
-      updateDto.status as 'VERIFIED' | 'REJECTED' | 'PENDING',
+      updateDto.status,
       req.user.walletAddress,
     );
   }
@@ -146,14 +202,9 @@ export class AdminUsersController {
   async updateUserRole(
     @Param('id') userId: string,
     @Body() updateDto: UpdateUserRoleDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ): Promise<{ success: boolean; message: string }> {
     const adminId = req.user.sub || req.user.userId || req.user.walletAddress;
-    return this.usersService.updateUserRole(
-      userId,
-      updateDto.role,
-      adminId,
-    );
+    return this.usersService.updateUserRole(userId, updateDto.role, adminId);
   }
 }
-
