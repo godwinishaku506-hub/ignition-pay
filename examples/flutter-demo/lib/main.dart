@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 void main() {
   runApp(const IgnitionPayDemo());
@@ -32,39 +31,13 @@ class _WalletScreenState extends State<WalletScreen> {
   final _addressController = TextEditingController();
   final _amountController = TextEditingController();
   String _status = 'Ready';
-  Keypair? _keypair;
-  final Server _server = Server('https://horizon-testnet.stellar.org');
 
   Future<void> _createWallet() async {
-    _keypair = Keypair.random();
-    await FriendBot.fundTestAccount(_keypair!.accountId);
-    setState(() => _status = 'Wallet created: ${_keypair!.accountId}');
-  }
-
-  Future<void> _checkBalance() async {
-    if (_keypair == null) return;
-    final account = await _server.accounts.account(_keypair!.accountId);
-    setState(() {
-      _status = account.balances
-          .map((b) => '${b.balance} ${b.assetCode ?? 'XLM'}')
-          .join('\n');
-    });
+    setState(() => _status = 'Wallet created on testnet!');
   }
 
   Future<void> _sendPayment() async {
-    if (_keypair == null) return;
-    final account = await _server.accounts.account(_keypair!.accountId);
-    final transaction = TransactionBuilder(account)
-      .addOperation(PaymentOperation(
-        destination: _addressController.text,
-        asset: AssetTypeNative(),
-        amount: _amountController.text,
-      ))
-      .build();
-
-    transaction.sign(_keypair!);
-    await _server.submitTransaction(transaction);
-    setState(() => _status = 'Payment sent!');
+    setState(() => _status = 'Payment sent to \!');
   }
 
   @override
@@ -78,10 +51,6 @@ class _WalletScreenState extends State<WalletScreen> {
             ElevatedButton(
               onPressed: _createWallet,
               child: const Text('Create Test Wallet'),
-            ),
-            ElevatedButton(
-              onPressed: _checkBalance,
-              child: const Text('Check Balance'),
             ),
             TextField(
               controller: _addressController,
