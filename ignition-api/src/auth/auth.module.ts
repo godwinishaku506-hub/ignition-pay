@@ -1,28 +1,30 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CacheModule } from '@nestjs/cache-manager';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SessionModule } from '../session/session.module';
+
 import { AuthChallengeController } from './auth-challenge.controller';
 import { AuthVerifyController } from './auth-verify.controller';
 import { AuthLogoutController } from './auth-logout.controller';
 import { AuthRefreshController } from './auth-refresh.controller';
 import { AuthTokenService } from './auth-token.service';
-import { JwtMiddleware } from './jwt.middleware';
 
 @Module({
   imports: [
+    ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET', 'stellaraid-default-secret'),
-        signOptions: { expiresIn: '15m' },
+        signOptions: {
+          expiresIn: `${config.get<number>('SESSION_ACCESS_TTL_SECONDS', 900)}s`,
+        },
       }),
     }),
     PrismaModule,
-    CacheModule,
+    SessionModule,
   ],
   controllers: [
     AuthChallengeController,
@@ -31,11 +33,6 @@ import { JwtMiddleware } from './jwt.middleware';
     AuthRefreshController,
   ],
   providers: [AuthTokenService],
-  exports: [JwtModule, AuthTokenService],
-    SessionModule,
-  ],
-  controllers: [AuthChallengeController, AuthVerifyController, AuthLogoutController],
-  providers: [JwtMiddleware],
-  exports: [JwtModule, JwtMiddleware],
+  exports: [AuthTokenService, JwtModule],
 })
 export class AuthModule {}
