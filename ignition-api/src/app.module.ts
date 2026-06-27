@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
@@ -20,6 +20,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { SessionModule } from './session/session.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { ConfigValidationService } from './config/validation';
+import { SentryMiddleware } from './common/sentry/sentry.middleware';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -39,6 +41,7 @@ import { ConfigValidationService } from './config/validation';
     WalletsModule,
     TransactionsModule,
     AddressesModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -54,4 +57,8 @@ import { ConfigValidationService } from './config/validation';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(SentryMiddleware).forRoutes('*');
+  }
+}
