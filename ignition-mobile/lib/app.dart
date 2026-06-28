@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/design_system/design_system.dart';
-import 'features/home/pages/home_page.dart';
-import 'router/app_router.dart';
+import 'core/routing/app_router.dart';
 
 class IgnitionPayApp extends StatelessWidget {
   const IgnitionPayApp({super.key});
