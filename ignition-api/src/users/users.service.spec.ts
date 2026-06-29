@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import Keyv from 'keyv';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionService } from '../session/session.service';
 import { UsersService } from './users.service';
 
 jest.mock('bcryptjs', () => ({
@@ -92,6 +93,7 @@ describe('UsersService password security', () => {
       { sign: jest.fn() } as unknown as JwtService,
       new ConfigService({ PASSWORD_BCRYPT_ROUNDS: '12' }),
       cache,
+      { createSession: jest.fn() } as unknown as SessionService,
     );
   });
 
@@ -237,6 +239,7 @@ describe('UsersService login', () => {
   let prisma: {
     user: {
       findUnique: jest.Mock;
+      findFirst: jest.Mock;
       update: jest.Mock;
     };
   };
@@ -247,6 +250,7 @@ describe('UsersService login', () => {
     prisma = {
       user: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
       },
     };
@@ -264,6 +268,9 @@ describe('UsersService login', () => {
         REFRESH_TOKEN_SECRET: 'test-refresh-secret',
       }),
       cache as unknown as Keyv,
+      {
+        createSession: jest.fn().mockResolvedValue({ sessionId: 'sess-123' }),
+      } as unknown as SessionService,
     );
   });
 
@@ -278,7 +285,7 @@ describe('UsersService login', () => {
       lockedUntil: null,
     };
 
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.user.findFirst as jest.Mock).mockResolvedValue(mockUser);
     (prisma.user.update as jest.Mock).mockResolvedValue({});
     bcryptMock.compare.mockResolvedValueOnce(true as never);
 
